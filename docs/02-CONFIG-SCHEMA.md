@@ -241,8 +241,45 @@ class ServiceCfg(BaseModel):
 
 ## Migration path
 
-- Schema có field `version`. Khi bump:
-  1. Thêm `migrations/<from>_to_<to>.py` trong `devctl-core`.
-  2. CLI `devctl config migrate` chạy tuần tự.
-  3. Ghi changelog + cập nhật docs.
-- Không hỗ trợ downgrade tự động; user backup trước.
+### Framework
+
+Migration là class chuyển `dict` từ version X sang X+1:
+
+```python
+# src/devctl_core/migrations/v1_to_v2.py
+class V1ToV2:
+    from_version = 1
+    to_version = 2
+
+    def migrate(self, data):
+        data = dict(data)
+        data["version"] = 2
+        # đổi tên field, thêm field mới, ...
+        return data
+```
+
+Đăng ký trong `migrations/__init__.py`:
+
+```python
+from devctl_core.migrations.v1_to_v2 import V1ToV2
+register(V1ToV2())
+```
+
+Xem `src/devctl_core/migrations/_template.py` để biết chi tiết.
+
+### CLI
+
+```bash
+devctl config migrate --dry-run          # in diff, không ghi file
+devctl config migrate                    # backup + ghi
+devctl config migrate --target 2         # chỉ lên version 2
+```
+
+Backup: `.devctl/config.yaml.bak` (ghi đè mỗi lần migrate).
+
+### Quy tắc
+
+- Không hỗ trợ downgrade tự động.
+- Nếu thiếu migration cho một bước → `CFG_002` với `reason=migration_path_missing`.
+- Nếu `version` thiếu → `CFG_002` với `reason=missing_version`.
+- Nếu `target < current` → `CFG_002` với `reason=downgrade_not_supported`.

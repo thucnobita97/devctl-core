@@ -172,6 +172,18 @@ devctl status --json
 #   "health": "healthy", "pid": 12345}]
 ```
 
+### `devctl config migrate`
+
+Migrate `.devctl/config.yaml` lên version mới (backup `.bak` trước khi ghi).
+
+```bash
+devctl config migrate --dry-run       # in diff
+devctl config migrate                 # backup + ghi
+devctl config migrate --target 2      # đích cụ thể
+```
+
+Chi tiết framework: xem `docs/02-CONFIG-SCHEMA.md#migration-path`.
+
 ## Error codes
 
 Xem `04-ERROR-FORMAT.md` cho bảng đầy đủ.

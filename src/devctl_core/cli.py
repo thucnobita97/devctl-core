@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+import yaml
 
 from devctl_core.config import (
     load_all_services,
@@ -14,12 +15,14 @@ from devctl_core.config import (
     load_session,
     validate_service_references,
 )
+from devctl_core.config._io import read_yaml
 from devctl_core.config.models import Config, ServiceCfg
 from devctl_core.errors import DevctlError
 from devctl_core.health import check as health_check
 from devctl_core.hooks import DEFAULT_TIMEOUT, PHASES, run_phase
 from devctl_core.info import collect_info
 from devctl_core.init import init_devctl
+from devctl_core.migrations import all_migrations, run_migrations
 from devctl_core.providers import ProviderContext, all_providers
 from devctl_core.providers import get as get_provider
 from devctl_core.runtime import log_file, pid_file
@@ -35,6 +38,9 @@ hook_app = typer.Typer(help="Hook commands.", no_args_is_help=True)
 provider_app = typer.Typer(help="Provider commands.", no_args_is_help=True)
 app.add_typer(hook_app, name="hook")
 app.add_typer(provider_app, name="provider")
+
+config_app = typer.Typer(help="Config commands.", no_args_is_help=True)
+app.add_typer(config_app, name="config")
 
 
 @app.callback()
@@ -559,6 +565,86 @@ def info_cmd(
             typer.echo(f"{key}: {', '.join(str(v) for v in value)}")
         else:
             typer.echo(f"{key}: {value}")
+
+
+def _run_migration(
+    config_dir: Path,
+    target: int | None,
+    dry_run: bool,
+) -> tuple[int, int]:
+    """Chạy migration và (nếu không dry-run) ghi file + backup.
+
+    Trả về (cur_version, resolved_target).
+    """
+    cfg_path = config_dir / "config.yaml"
+    if not cfg_path.exists():
+        raise DevctlError("MAN_002", context={"file": str(cfg_path)})
+
+    data = read_yaml(cfg_path)
+    cur = data.get("version")
+    if not isinstance(cur, int):
+        raise DevctlError(
+            "CFG_002",
+            context={"file": str(cfg_path), "reason": "missing_version"},
+        )
+
+    migrations = all_migrations()
+    if target is None:
+        candidates = [t for (f, t) in migrations if f == cur]
+        resolved: int = max(candidates) if candidates else cur
+    else:
+        resolved = target
+
+    if resolved == cur:
+        return cur, resolved
+
+    new_data = run_migrations(cur, resolved, data)
+
+    if dry_run:
+        typer.echo(
+            json.dumps(
+                {"from": cur, "to": resolved, "data": new_data},
+                indent=2,
+            )
+        )
+        return cur, resolved
+
+    backup = cfg_path.with_name(cfg_path.name + ".bak")
+    backup.write_text(cfg_path.read_text(encoding="utf-8"), encoding="utf-8")
+    cfg_path.write_text(
+        yaml.safe_dump(new_data, sort_keys=False),
+        encoding="utf-8",
+    )
+    return cur, resolved
+
+
+@config_app.command("migrate")
+def config_migrate_cmd(
+    config_dir: Annotated[
+        Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
+    ] = Path(".devctl"),
+    target: Annotated[
+        int | None,
+        typer.Option("--target", "-t", help="Version đích (mặc định: cao nhất)."),
+    ] = None,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Chỉ in diff, không ghi file.")
+    ] = False,
+) -> None:
+    """Migrate config.yaml lên version đích (backup `.bak` trước khi ghi)."""
+    try:
+        cur, resolved = _run_migration(config_dir, target, dry_run)
+    except DevctlError as err:
+        _die(err)
+        raise  # unreachable, giữ mypy happy
+
+    if resolved == cur:
+        typer.echo(f"already at version {cur}")
+    elif dry_run:
+        # JSON đã in trong _run_migration
+        pass
+    else:
+        typer.echo(f"migrated: {cur} -> {resolved}")
 
 
 if __name__ == "__main__":  # pragma: no cover
