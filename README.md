@@ -1,5 +1,11 @@
 # devctl-core
 
+![python](https://img.shields.io/badge/python-3.12-blue)
+![tests](https://img.shields.io/badge/tests-189%20passed-brightgreen)
+![coverage](https://img.shields.io/badge/coverage-96%25-brightgreen)
+![version](https://img.shields.io/badge/version-0.2.0.dev0-orange)
+
+
 Library + CLI quản lý service dev cho project.
 
 ## Cài đặt
