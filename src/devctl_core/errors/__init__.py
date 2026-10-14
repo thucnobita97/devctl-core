@@ -25,6 +25,16 @@ _DEFAULT_SUGGESTIONS: dict[str, list[str]] = {
         "Kiểm tra tên service trong `depends_on` (phải trỏ tới service đã khai báo).",
         "Kiểm tra `env_file` và `hooks.*` có tồn tại trên đĩa.",
     ],
+    "HOK_001": [
+        "Chạy thủ công để xem lỗi: bash <hook>.",
+        "Kiểm tra log chi tiết của hook.",
+    ],
+    "HOK_002": [
+        "Cấp quyền thực thi: chmod +x <hook>.",
+    ],
+    "HOK_003": [
+        "Kiểm tra hook file có tồn tại trong .devctl/hooks/.",
+    ],
 }
 
 _DEFAULT_DOCS: dict[str, str] = {
@@ -36,6 +46,9 @@ _DEFAULT_DOCS: dict[str, str] = {
     "CFG_003": "docs/02-CONFIG-SCHEMA.md#validation-rules",
     "CFG_004": "docs/02-CONFIG-SCHEMA.md#validation-rules",
     "CFG_005": "docs/02-CONFIG-SCHEMA.md#validation-rules",
+    "HOK_001": "docs/04-ERROR-FORMAT.md#hok_001",
+    "HOK_002": "docs/04-ERROR-FORMAT.md#hok_002",
+    "HOK_003": "docs/04-ERROR-FORMAT.md#hok_003",
 }
 
 

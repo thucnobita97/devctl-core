@@ -12,6 +12,7 @@ from devctl_core.config import (
     validate_service_references,
 )
 from devctl_core.errors import DevctlError
+from devctl_core.hooks import DEFAULT_TIMEOUT, PHASES, run_phase
 from devctl_core.init import init_devctl
 
 app = typer.Typer(
@@ -20,6 +21,9 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
 )
+
+hook_app = typer.Typer(help="Hook commands.", no_args_is_help=True)
+app.add_typer(hook_app, name="hook")
 
 
 @app.callback()
@@ -36,6 +40,9 @@ _EXIT_CODES: dict[str, int] = {
     "CFG_003": 3,
     "CFG_004": 4,
     "CFG_005": 5,
+    "HOK_001": 6,
+    "HOK_002": 7,
+    "HOK_003": 8,
 }
 _UNKNOWN_EXIT = 99
 
@@ -115,6 +122,54 @@ def init_cmd(
         typer.echo(f"skipped: {path}")
 
     typer.echo(f"{len(result.created)} created, {len(result.skipped)} skipped")
+
+
+@hook_app.command("run")
+def hook_run_cmd(
+    service: Annotated[str, typer.Argument(help="Tên service.")],
+    phase: Annotated[
+        str,
+        typer.Argument(help=f"Một trong: {', '.join(PHASES)}"),
+    ],
+    hooks_dir: Annotated[
+        Path,
+        typer.Option("--hooks-dir", help="Thư mục chứa hook (mặc định .devctl/hooks)."),
+    ] = Path(".devctl/hooks"),
+    ignore_hooks: Annotated[
+        bool,
+        typer.Option("--ignore-hooks", help="Bỏ qua toàn bộ hook."),
+    ] = False,
+    timeout: Annotated[
+        float,
+        typer.Option("--timeout", help="Timeout mỗi hook (giây)."),
+    ] = DEFAULT_TIMEOUT,
+) -> None:
+    """Chạy hook cho SERVICE ở PHASE (fail-fast)."""
+    if phase not in PHASES:
+        typer.echo(
+            f"ERROR: CFG_002\nfield: phase\nvalue: {phase}\n"
+            f"Suggestion:\nChọn một trong: {', '.join(PHASES)}\n"
+            f"Docs: docs/02-CONFIG-SCHEMA.md",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    try:
+        ran = run_phase(
+            service,
+            phase,
+            hooks_dir,
+            ignore_hooks=ignore_hooks,
+            timeout=timeout,
+        )
+    except DevctlError as err:
+        _die(err)
+
+    if not ran:
+        typer.echo(f"no hooks for {service}.{phase}")
+    else:
+        for hook in ran:
+            typer.echo(f"ran: {hook}")
 
 
 if __name__ == "__main__":  # pragma: no cover

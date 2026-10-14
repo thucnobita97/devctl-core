@@ -46,7 +46,29 @@ Exit code:
 | 10 | MAN_001 — `.devctl/` thiếu |
 | 11 | MAN_002 — `config.yaml` thiếu |
 | 12 | MAN_003 — `services/` rỗng |
+| 6 | HOK_001 — hook exit ≠ 0 |
+| 7 | HOK_002 — hook không executable |
+| 8 | HOK_003 — hook không tồn tại |
 | 99 | lỗi khác |
+
+### `devctl hook run <SERVICE> <PHASE>`
+
+Chạy hook cho `SERVICE` ở `PHASE` (fail-fast). Phases:
+`pre-start`, `post-start`, `pre-stop`, `post-stop`.
+
+Thứ tự chạy:
+1. `.devctl/hooks/{phase}.sh` (global)
+2. `.devctl/hooks/{service}.{phase}.sh` (per-service)
+
+```bash
+devctl hook run postgres pre-start
+devctl hook run backend post-start --hooks-dir path/to/hooks
+devctl hook run postgres pre-start --ignore-hooks
+devctl hook run postgres pre-start --timeout 30
+```
+
+Exit code: `6` HOK_001 (hook fail), `7` HOK_002 (không executable),
+`8` HOK_003 (không tồn tại).
 
 ## Error codes
 
