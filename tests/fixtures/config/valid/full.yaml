@@ -1,0 +1,36 @@
+version: 1
+project:
+  name: menu-platform
+  root: .
+paths:
+  runtime: .devctl/runtime
+  logs: .devctl/logs
+  hooks: .devctl/hooks
+defaults:
+  provider: docker-compose
+  health_timeout: 30
+  stop_timeout: 15
+providers:
+  docker-compose:
+    compose_file: docker-compose.yml
+    project_name: menu-platform
+  docker-external:
+    detect_only: true
+  native:
+    pid_dir: .devctl/runtime
+  systemd:
+    scope: user
+  external:
+    detect_only: true
+session:
+  docs_dir: docs
+  handoff_dir: handoff-part-1
+  files:
+    roadmap: 00-ROADMAP.md
+    resume: 01-RESUME.md
+    patch_rules: 02-PATCH-RULES.md
+    decisions: 03-DECISIONS.md
+    conventions: 04-CONVENTIONS.md
+    changelog: 05-CHANGELOG.md
+    known_issues: 06-KNOWN-ISSUES.md
+    glossary: 07-GLOSSARY.md

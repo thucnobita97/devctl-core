@@ -1,0 +1,13 @@
+name: backend
+provider: native
+command: uvicorn app.main:app --reload --port 8000
+cwd: backend
+env_file: backend/.env
+health:
+  type: http
+  url: http://localhost:8000/health
+  expect_status: 200
+  timeout: 60
+depends_on:
+  - postgres
+  - redis

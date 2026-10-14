@@ -1,0 +1,5 @@
+name: backend
+provider: native
+health:
+  type: tcp
+  host: localhost

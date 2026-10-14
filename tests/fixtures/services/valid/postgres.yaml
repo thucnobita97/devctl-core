@@ -1,0 +1,11 @@
+name: postgres
+provider: docker-compose
+service: postgres
+health:
+  type: tcp
+  host: localhost
+  port: 5432
+  timeout: 30
+depends_on: []
+hooks:
+  post-start: postgres.post-start.sh
