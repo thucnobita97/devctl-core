@@ -78,7 +78,14 @@ Exit code: `6` HOK_001 (hook fail), `7` HOK_002 (không executable),
 
 ### `devctl provider list`
 
-Liệt kê các provider đã đăng ký (`native`, `docker-compose`).
+Liệt kê các provider đã đăng ký.
+
+Providers:
+- `native` — chạy subprocess, quản lý PID file. Hỗ trợ start/stop/status.
+- `docker-compose` — gọi `docker compose`. Hỗ trợ start/stop/status.
+- `systemd` — gọi `systemctl [--user|--system]`. Hỗ trợ start/stop/status.
+- `external` — detect-only, không start/stop được (raise `PRV_001`).
+- `docker-external` — detect-only, check `docker ps`. Không start/stop được.
 
 ```bash
 devctl provider list

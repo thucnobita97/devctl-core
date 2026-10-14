@@ -42,6 +42,10 @@ _DEFAULT_SUGGESTIONS: dict[str, list[str]] = {
     "PRV_002": [
         "Tạo docker-compose.yml hoặc cập nhật `providers.docker-compose.compose_file`.",
     ],
+    "PRV_003": [
+        "Kiểm tra systemd unit tồn tại: `systemctl --user cat <unit>`.",
+        "Kiểm tra field `service` trong service YAML (unit name).",
+    ],
     "PRV_004": [
         "Kiểm tra container external đang chạy: `docker ps`.",
     ],
@@ -79,6 +83,7 @@ _DEFAULT_DOCS: dict[str, str] = {
     "HOK_003": "docs/04-ERROR-FORMAT.md#hok_003",
     "PRV_001": "docs/04-ERROR-FORMAT.md",
     "PRV_002": "docs/04-ERROR-FORMAT.md",
+    "PRV_003": "docs/04-ERROR-FORMAT.md",
     "PRV_004": "docs/04-ERROR-FORMAT.md",
     "SVC_001": "docs/04-ERROR-FORMAT.md",
     "SVC_002": "docs/04-ERROR-FORMAT.md",

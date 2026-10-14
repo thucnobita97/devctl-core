@@ -16,6 +16,7 @@ class ProviderContext:
     runtime_dir: Path
     logs_dir: Path | None = None
     compose_file: Path | None = None
+    systemd_scope: str = "user"
     stop_timeout: int = 15
 
 

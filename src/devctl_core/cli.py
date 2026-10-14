@@ -100,11 +100,17 @@ def _build_context(
     if isinstance(dc, dict) and "compose_file" in dc:
         compose_file = project_root / str(dc["compose_file"])
 
+    systemd_scope = "user"
+    sd = cfg.providers.get("systemd")
+    if isinstance(sd, dict) and "scope" in sd:
+        systemd_scope = str(sd["scope"])
+
     ctx = ProviderContext(
         project_root=project_root,
         runtime_dir=project_root / cfg.paths.runtime,
         logs_dir=project_root / cfg.paths.logs,
         compose_file=compose_file,
+        systemd_scope=systemd_scope,
         stop_timeout=cfg.defaults.stop_timeout,
     )
     return cfg, services, ctx
