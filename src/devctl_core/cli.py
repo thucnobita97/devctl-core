@@ -125,11 +125,56 @@ def _wait_for_health(svc: ServiceCfg, ctx: ProviderContext) -> None:
             time.sleep(0.1)
 
 
+def _do_start(
+    svc: ServiceCfg,
+    ctx: ProviderContext,
+    hooks_dir: Path,
+    *,
+    ignore_hooks: bool,
+    timeout: float,
+    skip_health: bool,
+) -> None:
+    provider = get_provider(svc.provider)
+    run_phase(
+        svc.name, "pre-start", hooks_dir,
+        ignore_hooks=ignore_hooks, timeout=timeout,
+    )
+    provider.start(svc, ctx)
+    if not skip_health:
+        _wait_for_health(svc, ctx)
+    run_phase(
+        svc.name, "post-start", hooks_dir,
+        ignore_hooks=ignore_hooks, timeout=timeout,
+    )
+
+
+def _do_stop(
+    svc: ServiceCfg,
+    ctx: ProviderContext,
+    hooks_dir: Path,
+    *,
+    ignore_hooks: bool,
+    timeout: float,
+) -> None:
+    provider = get_provider(svc.provider)
+    run_phase(
+        svc.name, "pre-stop", hooks_dir,
+        ignore_hooks=ignore_hooks, timeout=timeout,
+    )
+    provider.stop(svc, ctx)
+    run_phase(
+        svc.name, "post-stop", hooks_dir,
+        ignore_hooks=ignore_hooks, timeout=timeout,
+    )
+
+
+# ----------------------------- commands ---------------------------------
+
+
 @app.command("validate")
 def validate_cmd(
     config_dir: Annotated[
-        Path,
-        typer.Option("--config-dir", "-c", help="Thư mục chứa config."),
+        Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
     ] = Path(".devctl"),
 ) -> None:
     """Validate .devctl/ (config.yaml + session.yaml + services/)."""
@@ -260,19 +305,10 @@ def start_cmd(
         if service not in services:
             raise DevctlError("SVC_001", context={"service": service})
         svc = services[service]
-        provider = get_provider(svc.provider)
         hooks_dir = ctx.project_root / cfg.paths.hooks
-
-        run_phase(
-            svc.name, "pre-start", hooks_dir,
-            ignore_hooks=ignore_hooks, timeout=timeout,
-        )
-        provider.start(svc, ctx)
-        if not skip_health:
-            _wait_for_health(svc, ctx)
-        run_phase(
-            svc.name, "post-start", hooks_dir,
-            ignore_hooks=ignore_hooks, timeout=timeout,
+        _do_start(
+            svc, ctx, hooks_dir,
+            ignore_hooks=ignore_hooks, timeout=timeout, skip_health=skip_health,
         )
     except DevctlError as err:
         _die(err)
@@ -299,22 +335,74 @@ def stop_cmd(
         if service not in services:
             raise DevctlError("SVC_001", context={"service": service})
         svc = services[service]
-        provider = get_provider(svc.provider)
         hooks_dir = ctx.project_root / cfg.paths.hooks
-
-        run_phase(
-            svc.name, "pre-stop", hooks_dir,
-            ignore_hooks=ignore_hooks, timeout=timeout,
-        )
-        provider.stop(svc, ctx)
-        run_phase(
-            svc.name, "post-stop", hooks_dir,
+        _do_stop(
+            svc, ctx, hooks_dir,
             ignore_hooks=ignore_hooks, timeout=timeout,
         )
     except DevctlError as err:
         _die(err)
 
     typer.echo(f"stopped: {service}")
+
+
+@app.command("restart")
+def restart_cmd(
+    service: Annotated[str, typer.Argument(help="Tên service.")],
+    config_dir: Annotated[
+        Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
+    ] = Path(".devctl"),
+    ignore_hooks: Annotated[
+        bool, typer.Option("--ignore-hooks", help="Bỏ qua toàn bộ hook.")
+    ] = False,
+    timeout: Annotated[
+        float, typer.Option("--timeout", help="Timeout mỗi hook (giây).")
+    ] = DEFAULT_TIMEOUT,
+    skip_health: Annotated[
+        bool, typer.Option("--skip-health", help="Bỏ qua health check sau start.")
+    ] = False,
+) -> None:
+    """Restart service: stop nếu đang chạy, rồi start (cùng hook + health)."""
+    try:
+        cfg, services, ctx = _build_context(config_dir)
+        if service not in services:
+            raise DevctlError("SVC_001", context={"service": service})
+        svc = services[service]
+        provider = get_provider(svc.provider)
+        hooks_dir = ctx.project_root / cfg.paths.hooks
+
+        if provider.status(svc, ctx) == "running":
+            _do_stop(
+                svc, ctx, hooks_dir,
+                ignore_hooks=ignore_hooks, timeout=timeout,
+            )
+        _do_start(
+            svc, ctx, hooks_dir,
+            ignore_hooks=ignore_hooks, timeout=timeout, skip_health=skip_health,
+        )
+    except DevctlError as err:
+        _die(err)
+
+    typer.echo(f"restarted: {service}")
+
+
+@app.command("ps")
+def ps_cmd(
+    config_dir: Annotated[
+        Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
+    ] = Path(".devctl"),
+) -> None:
+    """In trạng thái ngắn gọn (service\\tstate). KHÔNG gọi health check."""
+    try:
+        _cfg, services, ctx = _build_context(config_dir)
+        typer.echo("service\tstate")
+        for name in sorted(services):
+            svc = services[name]
+            provider = get_provider(svc.provider)
+            state = provider.status(svc, ctx)
+            typer.echo(f"{name}\t{state}")
+    except DevctlError as err:
+        _die(err)
 
 
 @app.command("status")
@@ -330,7 +418,7 @@ def status_cmd(
     """In trạng thái service (provider + running/stopped + health)."""
     failed = False
     try:
-        cfg, services, ctx = _build_context(config_dir)
+        _cfg, services, ctx = _build_context(config_dir)
         if service is not None and service not in services:
             raise DevctlError("SVC_001", context={"service": service})
         names = [service] if service else sorted(services)
@@ -375,7 +463,7 @@ def logs_cmd(
 ) -> None:
     """Xem log của service (`.devctl/logs/{svc}.log`)."""
     try:
-        cfg, services, ctx = _build_context(config_dir)
+        _cfg, services, ctx = _build_context(config_dir)
         if service not in services:
             raise DevctlError("SVC_001", context={"service": service})
         svc = services[service]

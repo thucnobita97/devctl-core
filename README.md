@@ -112,6 +112,24 @@ devctl status
 devctl status backend
 ```
 
+### `devctl restart <SERVICE>`
+
+Restart service: nếu đang chạy → stop (cùng hooks), rồi start (cùng hooks + health).
+Nếu không chạy → start bình thường.
+
+```bash
+devctl restart backend
+devctl restart backend --ignore-hooks --skip-health
+```
+
+### `devctl ps`
+
+Liệt kê nhanh `service\tstate`. Không gọi health check.
+
+```bash
+devctl ps
+```
+
 ### `devctl logs <SERVICE>`
 
 Xem log service (`.devctl/logs/{svc}.log`).
