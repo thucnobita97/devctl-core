@@ -158,3 +158,45 @@ def test_load_all_services_cycle_three_nodes(tmp_path: Path) -> None:
         load_all_services(tmp_path)
     assert ei.value.code == "CFG_004"
     assert ei.value.context["cycle"].count("->") >= 3
+
+def test_load_config_read_text_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pathlib import Path as _Path
+
+    target = tmp_path / "c.yaml"
+    target.write_text("version: 1\nproject:\n  name: x\n", encoding="utf-8")
+
+    def boom(*_args: object, **_kwargs: object) -> str:
+        raise OSError("permission denied")
+
+    monkeypatch.setattr(_Path, "read_text", boom)
+
+    with pytest.raises(DevctlError) as ei:
+        load_config(target)
+    assert ei.value.code == "CFG_002"
+    assert ei.value.context["reason"] == "file_not_found"
+
+
+def test_load_config_empty_file(tmp_path: Path) -> None:
+    p = tmp_path / "c.yaml"
+    p.write_text("", encoding="utf-8")
+    with pytest.raises(DevctlError) as ei:
+        load_config(p)
+    assert ei.value.code == "CFG_002"
+
+
+def test_load_config_no_version(tmp_path: Path) -> None:
+    p = tmp_path / "c.yaml"
+    p.write_text("project:\n  name: x\n", encoding="utf-8")
+    with pytest.raises(DevctlError) as ei:
+        load_config(p)
+    assert ei.value.code == "CFG_002"
+
+
+def test_load_service_top_level_not_mapping(tmp_path: Path) -> None:
+    p = tmp_path / "s.yaml"
+    p.write_text("- 1\n", encoding="utf-8")
+    with pytest.raises(DevctlError) as ei:
+        load_service(p)
+    assert ei.value.code == "CFG_002"

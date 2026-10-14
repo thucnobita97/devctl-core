@@ -12,6 +12,7 @@ from devctl_core.config import (
     validate_service_references,
 )
 from devctl_core.errors import DevctlError
+from devctl_core.init import init_devctl
 
 app = typer.Typer(
     name="devctl",
@@ -58,10 +59,7 @@ def validate_cmd(
     """Validate .devctl/ (config.yaml + session.yaml + services/)."""
     try:
         if not config_dir.exists():
-            raise DevctlError(
-                "MAN_001",
-                context={"dir": str(config_dir)},
-            )
+            raise DevctlError("MAN_001", context={"dir": str(config_dir)})
 
         project_root = config_dir.parent
 
@@ -95,6 +93,28 @@ def validate_cmd(
         _die(err)
 
     typer.echo("OK")
+
+
+@app.command("init")
+def init_cmd(
+    root: Annotated[
+        Path,
+        typer.Argument(help="Thư mục project (mặc định: thư mục hiện tại)."),
+    ] = Path("."),
+    force: Annotated[
+        bool,
+        typer.Option("--force", "-f", help="Ghi đè file đã tồn tại."),
+    ] = False,
+) -> None:
+    """Sinh skeleton .devctl/ cho project (idempotent)."""
+    result = init_devctl(root, force=force)
+
+    for path in result.created:
+        typer.echo(f"created: {path}")
+    for path in result.skipped:
+        typer.echo(f"skipped: {path}")
+
+    typer.echo(f"{len(result.created)} created, {len(result.skipped)} skipped")
 
 
 if __name__ == "__main__":  # pragma: no cover

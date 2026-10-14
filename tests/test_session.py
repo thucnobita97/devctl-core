@@ -53,3 +53,18 @@ def test_load_session_missing_required(tmp_path: Path) -> None:
     with pytest.raises(DevctlError) as ei:
         load_session(p)
     assert ei.value.code == "CFG_002"
+
+def test_load_session_top_level_not_mapping(tmp_path: Path) -> None:
+    p = tmp_path / "s.yaml"
+    p.write_text("- 1\n", encoding="utf-8")
+    with pytest.raises(DevctlError) as ei:
+        load_session(p)
+    assert ei.value.code == "CFG_002"
+
+
+def test_load_session_empty_file(tmp_path: Path) -> None:
+    p = tmp_path / "s.yaml"
+    p.write_text("", encoding="utf-8")
+    with pytest.raises(DevctlError) as ei:
+        load_session(p)
+    assert ei.value.code == "CFG_002"
