@@ -1,0 +1,8 @@
+name: redis
+provider: docker-compose
+service: redis
+health:
+  type: exec
+  command: redis-cli ping
+  expect: PONG
+depends_on: []

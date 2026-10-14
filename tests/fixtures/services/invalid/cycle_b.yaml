@@ -1,0 +1,4 @@
+name: b
+provider: native
+command: echo b
+depends_on: [a]
