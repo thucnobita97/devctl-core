@@ -213,3 +213,48 @@ def test_cli_hook_bad_phase(tmp_path: Path) -> None:
     )
     assert result.exit_code == 2
     assert "CFG_002" in result.output
+
+def test_run_phase_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+    from devctl_core import hooks as hooks_mod
+
+    hooks_dir = tmp_path / "hooks"
+    hooks_dir.mkdir()
+    h = hooks_dir / "pre-start.sh"
+    h.write_text("#!/usr/bin/env bash\nsleep 5\n", encoding="utf-8")
+    _make_executable(h)
+
+    real_run = subprocess.run
+
+    def fake_run(*args: object, **kwargs: object) -> object:
+        raise subprocess.TimeoutExpired(cmd=str(args[0]), timeout=kwargs.get("timeout", 1))
+
+    monkeypatch.setattr(hooks_mod.subprocess, "run", fake_run)
+
+    with pytest.raises(DevctlError) as ei:
+        run_phase("svc", "pre-start", hooks_dir, timeout=0.01)
+    assert ei.value.code == "HOK_001"
+    assert ei.value.context["exit_code"] == "timeout"
+
+    # Khôi phục (không thực sự cần vì pytest tự dọn monkeypatch)
+    monkeypatch.setattr(hooks_mod.subprocess, "run", real_run)
+
+
+def test_run_phase_oserror(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from devctl_core import hooks as hooks_mod
+
+    hooks_dir = tmp_path / "hooks"
+    hooks_dir.mkdir()
+    h = hooks_dir / "pre-start.sh"
+    h.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    _make_executable(h)
+
+    def fake_run(*args: object, **kwargs: object) -> object:
+        raise OSError("exec format error")
+
+    monkeypatch.setattr(hooks_mod.subprocess, "run", fake_run)
+
+    with pytest.raises(DevctlError) as ei:
+        run_phase("svc", "pre-start", hooks_dir)
+    assert ei.value.code == "HOK_001"
+    assert ei.value.context["exit_code"] == "oserror"
