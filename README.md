@@ -54,6 +54,7 @@ Exit code:
 | 30 | SVC_001 — service không tồn tại |
 | 31 | SVC_002 — start fail |
 | 32 | SVC_003 — stop fail |
+| 33 | SVC_004 — health timeout |
 | 99 | lỗi khác |
 
 ### `devctl hook run <SERVICE> <PHASE>`
@@ -100,6 +101,31 @@ Chạy pre-stop hook → `provider.stop()` → post-stop hook.
 ```bash
 devctl stop backend
 ```
+
+### `devctl status [SERVICE]`
+
+In trạng thái service: provider, running/stopped, health.
+Bỏ trống SERVICE → list toàn bộ. Exit code `33` nếu health fail.
+
+```bash
+devctl status
+devctl status backend
+```
+
+### `devctl logs <SERVICE>`
+
+Xem log service (`.devctl/logs/{svc}.log`).
+
+```bash
+devctl logs backend
+devctl logs backend --tail 100
+devctl logs backend --follow
+```
+
+### Health check
+
+Khi `devctl start`, health check chạy tự động sau khi provider start
+(poll tới `health.timeout` giây). Bỏ qua bằng `--skip-health`.
 
 ## Error codes
 

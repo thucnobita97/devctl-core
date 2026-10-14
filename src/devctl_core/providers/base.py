@@ -14,6 +14,7 @@ class ProviderContext:
 
     project_root: Path
     runtime_dir: Path
+    logs_dir: Path | None = None
     compose_file: Path | None = None
     stop_timeout: int = 15
 

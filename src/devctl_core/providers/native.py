@@ -7,6 +7,7 @@ import signal
 import subprocess
 import time
 from pathlib import Path
+from typing import IO
 
 from devctl_core.config.models import ServiceCfg
 from devctl_core.errors import DevctlError
@@ -44,12 +45,17 @@ class NativeProvider:
 
         cwd = ctx.project_root / svc.cwd if svc.cwd else ctx.project_root
 
+        log_f: IO[str] | None = None
+        if ctx.logs_dir is not None:
+            ctx.logs_dir.mkdir(parents=True, exist_ok=True)
+            log_f = (ctx.logs_dir / f"{svc.name}.log").open("a", encoding="utf-8")
+
         try:
             proc = subprocess.Popen(  # noqa: S603
                 argv,
                 cwd=cwd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=log_f if log_f is not None else subprocess.DEVNULL,
+                stderr=subprocess.STDOUT if log_f is not None else subprocess.DEVNULL,
                 start_new_session=True,
             )
         except OSError as exc:
@@ -61,6 +67,9 @@ class NativeProvider:
                     "message": str(exc),
                 },
             ) from exc
+        finally:
+            if log_f is not None:
+                log_f.close()
 
         ctx.runtime_dir.mkdir(parents=True, exist_ok=True)
         pid_file.write_text(str(proc.pid), encoding="utf-8")

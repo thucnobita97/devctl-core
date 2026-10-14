@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import time
 from pathlib import Path
 from typing import Annotated
 
@@ -13,10 +15,12 @@ from devctl_core.config import (
 )
 from devctl_core.config.models import Config, ServiceCfg
 from devctl_core.errors import DevctlError
+from devctl_core.health import check as health_check
 from devctl_core.hooks import DEFAULT_TIMEOUT, PHASES, run_phase
 from devctl_core.init import init_devctl
 from devctl_core.providers import ProviderContext, all_providers
 from devctl_core.providers import get as get_provider
+from devctl_core.runtime import log_file
 
 app = typer.Typer(
     name="devctl",
@@ -99,10 +103,26 @@ def _build_context(
     ctx = ProviderContext(
         project_root=project_root,
         runtime_dir=project_root / cfg.paths.runtime,
+        logs_dir=project_root / cfg.paths.logs,
         compose_file=compose_file,
         stop_timeout=cfg.defaults.stop_timeout,
     )
     return cfg, services, ctx
+
+
+def _wait_for_health(svc: ServiceCfg, ctx: ProviderContext) -> None:
+    """Poll health check tới khi pass hoặc hết `svc.health.timeout`."""
+    if svc.health is None:
+        return
+    deadline = time.monotonic() + float(svc.health.timeout)
+    while True:
+        try:
+            health_check(svc, ctx)
+            return
+        except DevctlError:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(0.1)
 
 
 @app.command("validate")
@@ -153,13 +173,9 @@ def validate_cmd(
 
 @app.command("init")
 def init_cmd(
-    root: Annotated[
-        Path,
-        typer.Argument(help="Thư mục project."),
-    ] = Path("."),
+    root: Annotated[Path, typer.Argument(help="Thư mục project.")] = Path("."),
     force: Annotated[
-        bool,
-        typer.Option("--force", "-f", help="Ghi đè file đã tồn tại."),
+        bool, typer.Option("--force", "-f", help="Ghi đè file đã tồn tại.")
     ] = False,
 ) -> None:
     """Sinh skeleton .devctl/ cho project (idempotent)."""
@@ -178,13 +194,13 @@ def hook_run_cmd(
     service: Annotated[str, typer.Argument(help="Tên service.")],
     phase: Annotated[str, typer.Argument(help=f"Một trong: {', '.join(PHASES)}")],
     hooks_dir: Annotated[
-        Path, typer.Option("--hooks-dir", help="Thư mục chứa hook."),
+        Path, typer.Option("--hooks-dir", help="Thư mục chứa hook.")
     ] = Path(".devctl/hooks"),
     ignore_hooks: Annotated[
-        bool, typer.Option("--ignore-hooks", help="Bỏ qua toàn bộ hook."),
+        bool, typer.Option("--ignore-hooks", help="Bỏ qua toàn bộ hook.")
     ] = False,
     timeout: Annotated[
-        float, typer.Option("--timeout", help="Timeout mỗi hook (giây)."),
+        float, typer.Option("--timeout", help="Timeout mỗi hook (giây).")
     ] = DEFAULT_TIMEOUT,
 ) -> None:
     """Chạy hook cho SERVICE ở PHASE (fail-fast)."""
@@ -226,16 +242,19 @@ def provider_list_cmd() -> None:
 def start_cmd(
     service: Annotated[str, typer.Argument(help="Tên service.")],
     config_dir: Annotated[
-        Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config."),
+        Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
     ] = Path(".devctl"),
     ignore_hooks: Annotated[
-        bool, typer.Option("--ignore-hooks", help="Bỏ qua toàn bộ hook."),
+        bool, typer.Option("--ignore-hooks", help="Bỏ qua toàn bộ hook.")
     ] = False,
     timeout: Annotated[
-        float, typer.Option("--timeout", help="Timeout mỗi hook (giây)."),
+        float, typer.Option("--timeout", help="Timeout mỗi hook (giây).")
     ] = DEFAULT_TIMEOUT,
+    skip_health: Annotated[
+        bool, typer.Option("--skip-health", help="Bỏ qua health check sau start.")
+    ] = False,
 ) -> None:
-    """Start một service (pre-start → provider.start → post-start)."""
+    """Start service: pre-start hook → provider.start → health check → post-start."""
     try:
         cfg, services, ctx = _build_context(config_dir)
         if service not in services:
@@ -249,6 +268,8 @@ def start_cmd(
             ignore_hooks=ignore_hooks, timeout=timeout,
         )
         provider.start(svc, ctx)
+        if not skip_health:
+            _wait_for_health(svc, ctx)
         run_phase(
             svc.name, "post-start", hooks_dir,
             ignore_hooks=ignore_hooks, timeout=timeout,
@@ -263,16 +284,16 @@ def start_cmd(
 def stop_cmd(
     service: Annotated[str, typer.Argument(help="Tên service.")],
     config_dir: Annotated[
-        Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config."),
+        Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
     ] = Path(".devctl"),
     ignore_hooks: Annotated[
-        bool, typer.Option("--ignore-hooks", help="Bỏ qua toàn bộ hook."),
+        bool, typer.Option("--ignore-hooks", help="Bỏ qua toàn bộ hook.")
     ] = False,
     timeout: Annotated[
-        float, typer.Option("--timeout", help="Timeout mỗi hook (giây)."),
+        float, typer.Option("--timeout", help="Timeout mỗi hook (giây).")
     ] = DEFAULT_TIMEOUT,
 ) -> None:
-    """Stop một service (pre-stop → provider.stop → post-stop)."""
+    """Stop service: pre-stop hook → provider.stop → post-stop."""
     try:
         cfg, services, ctx = _build_context(config_dir)
         if service not in services:
@@ -294,6 +315,80 @@ def stop_cmd(
         _die(err)
 
     typer.echo(f"stopped: {service}")
+
+
+@app.command("status")
+def status_cmd(
+    service: Annotated[
+        str | None,
+        typer.Argument(help="Tên service (bỏ trống → tất cả)."),
+    ] = None,
+    config_dir: Annotated[
+        Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
+    ] = Path(".devctl"),
+) -> None:
+    """In trạng thái service (provider + running/stopped + health)."""
+    failed = False
+    try:
+        cfg, services, ctx = _build_context(config_dir)
+        if service is not None and service not in services:
+            raise DevctlError("SVC_001", context={"service": service})
+        names = [service] if service else sorted(services)
+        typer.echo("service\tprovider\tstate\thealth")
+        for name in names:
+            svc = services[name]
+            provider = get_provider(svc.provider)
+            state = provider.status(svc, ctx)
+            health_state = "-"
+            if svc.health is not None and state == "running":
+                try:
+                    health_check(svc, ctx)
+                    health_state = "healthy"
+                except DevctlError:
+                    health_state = "unhealthy"
+                    failed = True
+            typer.echo(f"{name}\t{svc.provider}\t{state}\t{health_state}")
+    except DevctlError as err:
+        _die(err)
+
+    if failed:
+        raise typer.Exit(code=_EXIT_CODES["SVC_004"])
+
+
+def _print_tail(path: Path, n: int) -> None:
+    with path.open("r", encoding="utf-8", errors="replace") as f:
+        lines = f.readlines()
+    for line in lines[-n:]:
+        typer.echo(line, nl=False)
+
+
+@app.command("logs")
+def logs_cmd(
+    service: Annotated[str, typer.Argument(help="Tên service.")],
+    config_dir: Annotated[
+        Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
+    ] = Path(".devctl"),
+    tail: Annotated[int, typer.Option("--tail", "-n", help="Số dòng cuối.")] = 50,
+    follow: Annotated[
+        bool, typer.Option("--follow", "-f", help="Theo dõi (tail -f).")
+    ] = False,
+) -> None:
+    """Xem log của service (`.devctl/logs/{svc}.log`)."""
+    try:
+        cfg, services, ctx = _build_context(config_dir)
+        if service not in services:
+            raise DevctlError("SVC_001", context={"service": service})
+        svc = services[service]
+        path = log_file(ctx, svc)
+        if not path.exists():
+            typer.echo(f"no log file: {path}")
+            return
+        if follow:
+            subprocess.call(["tail", "-n", str(tail), "-f", str(path)])  # noqa: S603,S607
+        else:
+            _print_tail(path, tail)
+    except DevctlError as err:
+        _die(err)
 
 
 if __name__ == "__main__":  # pragma: no cover
