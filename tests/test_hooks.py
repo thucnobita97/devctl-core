@@ -216,6 +216,7 @@ def test_cli_hook_bad_phase(tmp_path: Path) -> None:
 
 def test_run_phase_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import subprocess
+
     from devctl_core import hooks as hooks_mod
 
     hooks_dir = tmp_path / "hooks"
