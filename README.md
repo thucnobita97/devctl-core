@@ -189,6 +189,20 @@ devctl config migrate --target 2      # đích cụ thể
 
 Chi tiết framework: xem `docs/02-CONFIG-SCHEMA.md#migration-path`.
 
+### `devctl doctor`
+
+Kiểm tra môi trường: python version, tool (uv/git/docker/systemctl),
+quyền ghi `.devctl/`, port conflicts.
+
+```bash
+devctl doctor
+devctl doctor --json
+```
+
+Exit code: `0` (không fail) / `40` (có ít nhất 1 check fail).
+
+Check result status: `OK` / `WARN` / `FAIL`. Chỉ `FAIL` ảnh hưởng exit code.
+
 ## Error codes
 
 Xem `04-ERROR-FORMAT.md` cho bảng đầy đủ.

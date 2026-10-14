@@ -17,6 +17,7 @@ from devctl_core.config import (
 )
 from devctl_core.config._io import read_yaml
 from devctl_core.config.models import Config, ServiceCfg
+from devctl_core.doctor import EXIT_DOCTOR_FAIL, check_environment
 from devctl_core.errors import DevctlError
 from devctl_core.health import check as health_check
 from devctl_core.hooks import DEFAULT_TIMEOUT, PHASES, run_phase
@@ -656,6 +657,62 @@ def config_migrate_cmd(
         pass
     else:
         typer.echo(f"migrated: {cur} -> {resolved}")
+
+
+@app.command("doctor")
+def doctor_cmd(
+    config_dir: Annotated[
+        Path,
+        typer.Option("--config-dir", "-c", help="Thư mục chứa config."),
+    ] = Path(".devctl"),
+    json_output: Annotated[bool, typer.Option("--json", help="Xuất JSON thay vì text.")] = False,
+) -> None:
+    """Kiểm tra môi trường: python, tool, quyền ghi, port conflicts."""
+    project_root: Path | None = None
+    services: dict[str, ServiceCfg] = {}
+
+    if config_dir.exists():
+        project_root = config_dir.parent
+        services_dir = config_dir / "services"
+        if services_dir.exists():
+            try:
+                services = load_all_services(services_dir)
+            except DevctlError:
+                services = {}
+
+    results = check_environment(
+        project_root=project_root,
+        config_dir=config_dir if config_dir.exists() else None,
+        services=services,
+    )
+
+    if json_output:
+        typer.echo(
+            json.dumps(
+                [
+                    {
+                        "name": r.name,
+                        "status": r.status,
+                        "code": r.code,
+                        "detail": r.detail,
+                        "suggestion": r.suggestion,
+                    }
+                    for r in results
+                ]
+            )
+        )
+    else:
+        marker = {"ok": "OK  ", "warn": "WARN", "fail": "FAIL"}
+        for r in results:
+            line = f"[{marker[r.status]}] {r.name}"
+            if r.detail:
+                line += f" — {r.detail}"
+            typer.echo(line)
+            if r.suggestion:
+                typer.echo(f"       → {r.suggestion}")
+
+    if any(r.status == "fail" for r in results):
+        raise typer.Exit(code=EXIT_DOCTOR_FAIL)
 
 
 if __name__ == "__main__":  # pragma: no cover
