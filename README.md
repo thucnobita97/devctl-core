@@ -49,6 +49,11 @@ Exit code:
 | 6 | HOK_001 — hook exit ≠ 0 |
 | 7 | HOK_002 — hook không executable |
 | 8 | HOK_003 — hook không tồn tại |
+| 20 | PRV_001 — provider không hỗ trợ |
+| 21 | PRV_002 — compose file thiếu |
+| 30 | SVC_001 — service không tồn tại |
+| 31 | SVC_002 — start fail |
+| 32 | SVC_003 — stop fail |
 | 99 | lỗi khác |
 
 ### `devctl hook run <SERVICE> <PHASE>`
@@ -69,6 +74,32 @@ devctl hook run postgres pre-start --timeout 30
 
 Exit code: `6` HOK_001 (hook fail), `7` HOK_002 (không executable),
 `8` HOK_003 (không tồn tại).
+
+### `devctl provider list`
+
+Liệt kê các provider đã đăng ký (`native`, `docker-compose`).
+
+```bash
+devctl provider list
+```
+
+### `devctl start <SERVICE>`
+
+Chạy pre-start hook → `provider.start()` → post-start hook.
+
+```bash
+devctl start postgres
+devctl start backend --config-dir path/to/.devctl
+devctl start backend --ignore-hooks
+```
+
+### `devctl stop <SERVICE>`
+
+Chạy pre-stop hook → `provider.stop()` → post-stop hook.
+
+```bash
+devctl stop backend
+```
 
 ## Error codes
 

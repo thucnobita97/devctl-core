@@ -35,6 +35,34 @@ _DEFAULT_SUGGESTIONS: dict[str, list[str]] = {
     "HOK_003": [
         "Kiểm tra hook file có tồn tại trong .devctl/hooks/.",
     ],
+    "PRV_001": [
+        "Kiểm tra field `provider` trong service YAML.",
+        "Chạy `devctl provider list` để xem provider khả dụng.",
+    ],
+    "PRV_002": [
+        "Tạo docker-compose.yml hoặc cập nhật `providers.docker-compose.compose_file`.",
+    ],
+    "PRV_004": [
+        "Kiểm tra container external đang chạy: `docker ps`.",
+    ],
+    "SVC_001": [
+        "Kiểm tra tên service — chạy `devctl validate` để liệt kê service.",
+    ],
+    "SVC_002": [
+        "Xem log chi tiết: `devctl logs <service>` (khi có).",
+        "Kiểm tra port đã bị chiếm chưa.",
+    ],
+    "SVC_003": [
+        "Kiểm tra service có đang chạy: `devctl status <service>`.",
+    ],
+    "SVC_004": [
+        "Tăng `health.timeout` trong service YAML.",
+        "Kiểm tra process bằng `ps aux | grep <service>`.",
+    ],
+    "SVC_005": [
+        "Đổi port hoặc dừng process đang chiếm port.",
+        "Kiểm tra với `ss -tlnp | grep <port>`.",
+    ],
 }
 
 _DEFAULT_DOCS: dict[str, str] = {
@@ -49,6 +77,14 @@ _DEFAULT_DOCS: dict[str, str] = {
     "HOK_001": "docs/04-ERROR-FORMAT.md#hok_001",
     "HOK_002": "docs/04-ERROR-FORMAT.md#hok_002",
     "HOK_003": "docs/04-ERROR-FORMAT.md#hok_003",
+    "PRV_001": "docs/04-ERROR-FORMAT.md",
+    "PRV_002": "docs/04-ERROR-FORMAT.md",
+    "PRV_004": "docs/04-ERROR-FORMAT.md",
+    "SVC_001": "docs/04-ERROR-FORMAT.md",
+    "SVC_002": "docs/04-ERROR-FORMAT.md",
+    "SVC_003": "docs/04-ERROR-FORMAT.md",
+    "SVC_004": "docs/04-ERROR-FORMAT.md",
+    "SVC_005": "docs/04-ERROR-FORMAT.md",
 }
 
 

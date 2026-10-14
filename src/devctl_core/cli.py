@@ -11,9 +11,12 @@ from devctl_core.config import (
     load_session,
     validate_service_references,
 )
+from devctl_core.config.models import Config, ServiceCfg
 from devctl_core.errors import DevctlError
 from devctl_core.hooks import DEFAULT_TIMEOUT, PHASES, run_phase
 from devctl_core.init import init_devctl
+from devctl_core.providers import ProviderContext, all_providers
+from devctl_core.providers import get as get_provider
 
 app = typer.Typer(
     name="devctl",
@@ -23,7 +26,9 @@ app = typer.Typer(
 )
 
 hook_app = typer.Typer(help="Hook commands.", no_args_is_help=True)
+provider_app = typer.Typer(help="Provider commands.", no_args_is_help=True)
 app.add_typer(hook_app, name="hook")
+app.add_typer(provider_app, name="provider")
 
 
 @app.callback()
@@ -43,6 +48,15 @@ _EXIT_CODES: dict[str, int] = {
     "HOK_001": 6,
     "HOK_002": 7,
     "HOK_003": 8,
+    "PRV_001": 20,
+    "PRV_002": 21,
+    "PRV_003": 22,
+    "PRV_004": 23,
+    "SVC_001": 30,
+    "SVC_002": 31,
+    "SVC_003": 32,
+    "SVC_004": 33,
+    "SVC_005": 34,
 }
 _UNKNOWN_EXIT = 99
 
@@ -52,15 +66,50 @@ def _die(err: DevctlError) -> None:
     raise typer.Exit(code=_EXIT_CODES.get(err.code, _UNKNOWN_EXIT))
 
 
+def _build_context(
+    config_dir: Path,
+) -> tuple[Config, dict[str, ServiceCfg], ProviderContext]:
+    if not config_dir.exists():
+        raise DevctlError("MAN_001", context={"dir": str(config_dir)})
+
+    project_root = config_dir.parent
+
+    cfg_path = config_dir / "config.yaml"
+    if not cfg_path.exists():
+        raise DevctlError("MAN_002", context={"file": str(cfg_path)})
+    cfg = load_config(cfg_path)
+
+    services_dir = config_dir / "services"
+    if not services_dir.exists():
+        raise DevctlError("MAN_003", context={"dir": str(services_dir)})
+    services = load_all_services(services_dir)
+
+    hooks_dir = project_root / cfg.paths.hooks
+    validate_service_references(
+        services,
+        project_root=project_root,
+        hooks_dir=hooks_dir if hooks_dir.exists() else None,
+    )
+
+    compose_file: Path | None = None
+    dc = cfg.providers.get("docker-compose")
+    if isinstance(dc, dict) and "compose_file" in dc:
+        compose_file = project_root / str(dc["compose_file"])
+
+    ctx = ProviderContext(
+        project_root=project_root,
+        runtime_dir=project_root / cfg.paths.runtime,
+        compose_file=compose_file,
+        stop_timeout=cfg.defaults.stop_timeout,
+    )
+    return cfg, services, ctx
+
+
 @app.command("validate")
 def validate_cmd(
     config_dir: Annotated[
         Path,
-        typer.Option(
-            "--config-dir",
-            "-c",
-            help="Thư mục chứa config (mặc định .devctl).",
-        ),
+        typer.Option("--config-dir", "-c", help="Thư mục chứa config."),
     ] = Path(".devctl"),
 ) -> None:
     """Validate .devctl/ (config.yaml + session.yaml + services/)."""
@@ -106,7 +155,7 @@ def validate_cmd(
 def init_cmd(
     root: Annotated[
         Path,
-        typer.Argument(help="Thư mục project (mặc định: thư mục hiện tại)."),
+        typer.Argument(help="Thư mục project."),
     ] = Path("."),
     force: Annotated[
         bool,
@@ -127,21 +176,15 @@ def init_cmd(
 @hook_app.command("run")
 def hook_run_cmd(
     service: Annotated[str, typer.Argument(help="Tên service.")],
-    phase: Annotated[
-        str,
-        typer.Argument(help=f"Một trong: {', '.join(PHASES)}"),
-    ],
+    phase: Annotated[str, typer.Argument(help=f"Một trong: {', '.join(PHASES)}")],
     hooks_dir: Annotated[
-        Path,
-        typer.Option("--hooks-dir", help="Thư mục chứa hook (mặc định .devctl/hooks)."),
+        Path, typer.Option("--hooks-dir", help="Thư mục chứa hook."),
     ] = Path(".devctl/hooks"),
     ignore_hooks: Annotated[
-        bool,
-        typer.Option("--ignore-hooks", help="Bỏ qua toàn bộ hook."),
+        bool, typer.Option("--ignore-hooks", help="Bỏ qua toàn bộ hook."),
     ] = False,
     timeout: Annotated[
-        float,
-        typer.Option("--timeout", help="Timeout mỗi hook (giây)."),
+        float, typer.Option("--timeout", help="Timeout mỗi hook (giây)."),
     ] = DEFAULT_TIMEOUT,
 ) -> None:
     """Chạy hook cho SERVICE ở PHASE (fail-fast)."""
@@ -170,6 +213,87 @@ def hook_run_cmd(
     else:
         for hook in ran:
             typer.echo(f"ran: {hook}")
+
+
+@provider_app.command("list")
+def provider_list_cmd() -> None:
+    """Liệt kê provider đã đăng ký."""
+    for name in sorted(all_providers()):
+        typer.echo(name)
+
+
+@app.command("start")
+def start_cmd(
+    service: Annotated[str, typer.Argument(help="Tên service.")],
+    config_dir: Annotated[
+        Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config."),
+    ] = Path(".devctl"),
+    ignore_hooks: Annotated[
+        bool, typer.Option("--ignore-hooks", help="Bỏ qua toàn bộ hook."),
+    ] = False,
+    timeout: Annotated[
+        float, typer.Option("--timeout", help="Timeout mỗi hook (giây)."),
+    ] = DEFAULT_TIMEOUT,
+) -> None:
+    """Start một service (pre-start → provider.start → post-start)."""
+    try:
+        cfg, services, ctx = _build_context(config_dir)
+        if service not in services:
+            raise DevctlError("SVC_001", context={"service": service})
+        svc = services[service]
+        provider = get_provider(svc.provider)
+        hooks_dir = ctx.project_root / cfg.paths.hooks
+
+        run_phase(
+            svc.name, "pre-start", hooks_dir,
+            ignore_hooks=ignore_hooks, timeout=timeout,
+        )
+        provider.start(svc, ctx)
+        run_phase(
+            svc.name, "post-start", hooks_dir,
+            ignore_hooks=ignore_hooks, timeout=timeout,
+        )
+    except DevctlError as err:
+        _die(err)
+
+    typer.echo(f"started: {service}")
+
+
+@app.command("stop")
+def stop_cmd(
+    service: Annotated[str, typer.Argument(help="Tên service.")],
+    config_dir: Annotated[
+        Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config."),
+    ] = Path(".devctl"),
+    ignore_hooks: Annotated[
+        bool, typer.Option("--ignore-hooks", help="Bỏ qua toàn bộ hook."),
+    ] = False,
+    timeout: Annotated[
+        float, typer.Option("--timeout", help="Timeout mỗi hook (giây)."),
+    ] = DEFAULT_TIMEOUT,
+) -> None:
+    """Stop một service (pre-stop → provider.stop → post-stop)."""
+    try:
+        cfg, services, ctx = _build_context(config_dir)
+        if service not in services:
+            raise DevctlError("SVC_001", context={"service": service})
+        svc = services[service]
+        provider = get_provider(svc.provider)
+        hooks_dir = ctx.project_root / cfg.paths.hooks
+
+        run_phase(
+            svc.name, "pre-stop", hooks_dir,
+            ignore_hooks=ignore_hooks, timeout=timeout,
+        )
+        provider.stop(svc, ctx)
+        run_phase(
+            svc.name, "post-stop", hooks_dir,
+            ignore_hooks=ignore_hooks, timeout=timeout,
+        )
+    except DevctlError as err:
+        _die(err)
+
+    typer.echo(f"stopped: {service}")
 
 
 if __name__ == "__main__":  # pragma: no cover
