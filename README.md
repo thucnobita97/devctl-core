@@ -152,6 +152,26 @@ devctl logs backend --follow
 Khi `devctl start`, health check chạy tự động sau khi provider start
 (poll tới `health.timeout` giây). Bỏ qua bằng `--skip-health`.
 
+### `devctl info [--json]`
+
+In thông tin runtime: version core, python, platform, providers, config paths.
+
+```bash
+devctl info
+devctl info --json
+```
+
+### `--json` cho `validate` và `status`
+
+```bash
+devctl validate --json
+# {"ok": true, "errors": []}
+
+devctl status --json
+# [{"name": "app", "provider": "native", "state": "running",
+#   "health": "healthy", "pid": 12345}]
+```
+
 ## Error codes
 
 Xem `04-ERROR-FORMAT.md` cho bảng đầy đủ.

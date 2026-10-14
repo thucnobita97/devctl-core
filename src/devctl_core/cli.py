@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import time
 from pathlib import Path
@@ -17,10 +18,11 @@ from devctl_core.config.models import Config, ServiceCfg
 from devctl_core.errors import DevctlError
 from devctl_core.health import check as health_check
 from devctl_core.hooks import DEFAULT_TIMEOUT, PHASES, run_phase
+from devctl_core.info import collect_info
 from devctl_core.init import init_devctl
 from devctl_core.providers import ProviderContext, all_providers
 from devctl_core.providers import get as get_provider
-from devctl_core.runtime import log_file
+from devctl_core.runtime import log_file, pid_file
 
 app = typer.Typer(
     name="devctl",
@@ -68,6 +70,15 @@ _UNKNOWN_EXIT = 99
 def _die(err: DevctlError) -> None:
     typer.echo(err.render(), err=True)
     raise typer.Exit(code=_EXIT_CODES.get(err.code, _UNKNOWN_EXIT))
+
+
+def _err_to_dict(err: DevctlError) -> dict[str, object]:
+    return {
+        "code": err.code,
+        "context": err.context,
+        "suggestion": err.suggestion,
+        "docs": err.docs,
+    }
 
 
 def _build_context(
@@ -182,6 +193,9 @@ def validate_cmd(
     config_dir: Annotated[
         Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
     ] = Path(".devctl"),
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Xuất JSON thay vì text.")
+    ] = False,
 ) -> None:
     """Validate .devctl/ (config.yaml + session.yaml + services/)."""
     try:
@@ -217,9 +231,17 @@ def validate_cmd(
             hooks_dir=hooks_dir if hooks_dir.exists() else None,
         )
     except DevctlError as err:
+        if json_output:
+            typer.echo(
+                json.dumps({"ok": False, "errors": [_err_to_dict(err)]})
+            )
+            raise typer.Exit(code=_EXIT_CODES.get(err.code, _UNKNOWN_EXIT)) from err
         _die(err)
 
-    typer.echo("OK")
+    if json_output:
+        typer.echo(json.dumps({"ok": True, "errors": []}))
+    else:
+        typer.echo("OK")
 
 
 @app.command("init")
@@ -420,20 +442,25 @@ def status_cmd(
     config_dir: Annotated[
         Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
     ] = Path(".devctl"),
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Xuất JSON thay vì text.")
+    ] = False,
 ) -> None:
     """In trạng thái service (provider + running/stopped + health)."""
     failed = False
+    rows: list[dict[str, object]] = []
     try:
         _cfg, services, ctx = _build_context(config_dir)
         if service is not None and service not in services:
             raise DevctlError("SVC_001", context={"service": service})
         names = [service] if service else sorted(services)
-        typer.echo("service\tprovider\tstate\thealth")
+        if not json_output:
+            typer.echo("service\tprovider\tstate\thealth")
         for name in names:
             svc = services[name]
             provider = get_provider(svc.provider)
             state = provider.status(svc, ctx)
-            health_state = "-"
+            health_state: str | None = None
             if svc.health is not None and state == "running":
                 try:
                     health_check(svc, ctx)
@@ -441,9 +468,37 @@ def status_cmd(
                 except DevctlError:
                     health_state = "unhealthy"
                     failed = True
-            typer.echo(f"{name}\t{svc.provider}\t{state}\t{health_state}")
+            pid: int | None = None
+            if state == "running":
+                pf = pid_file(ctx, svc)
+                if pf.exists():
+                    try:
+                        pid = int(pf.read_text(encoding="utf-8").strip())
+                    except (OSError, ValueError):
+                        pid = None
+            if json_output:
+                rows.append(
+                    {
+                        "name": name,
+                        "provider": svc.provider,
+                        "state": state,
+                        "health": health_state,
+                        "pid": pid,
+                    }
+                )
+            else:
+                shown_health = health_state if health_state is not None else "-"
+                typer.echo(f"{name}\t{svc.provider}\t{state}\t{shown_health}")
     except DevctlError as err:
+        if json_output:
+            typer.echo(
+                json.dumps({"ok": False, "errors": [_err_to_dict(err)]})
+            )
+            raise typer.Exit(code=_EXIT_CODES.get(err.code, _UNKNOWN_EXIT)) from err
         _die(err)
+
+    if json_output:
+        typer.echo(json.dumps(rows))
 
     if failed:
         raise typer.Exit(code=_EXIT_CODES["SVC_004"])
@@ -483,6 +538,27 @@ def logs_cmd(
             _print_tail(path, tail)
     except DevctlError as err:
         _die(err)
+
+
+@app.command("info")
+def info_cmd(
+    config_dir: Annotated[
+        Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
+    ] = Path(".devctl"),
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Xuất JSON thay vì text.")
+    ] = False,
+) -> None:
+    """In thông tin runtime: version core, python, providers, config paths."""
+    info = collect_info(config_dir=config_dir)
+    if json_output:
+        typer.echo(json.dumps(info))
+        return
+    for key, value in info.items():
+        if isinstance(value, list):
+            typer.echo(f"{key}: {', '.join(str(v) for v in value)}")
+        else:
+            typer.echo(f"{key}: {value}")
 
 
 if __name__ == "__main__":  # pragma: no cover
