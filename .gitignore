@@ -9,3 +9,5 @@ build/
 *.egg-info/
 .coverage
 htmlcov/
+bootstrap-a*.sh
+add-spec-docs.sh
