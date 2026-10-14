@@ -1,79 +1,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
-import yaml
 from pydantic import ValidationError
 
+from devctl_core.config._io import read_yaml, wrap_validation_error
 from devctl_core.config.models import Config, ServiceCfg
 from devctl_core.errors import DevctlError
 
 
-def _read_yaml(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        raise DevctlError(
-            "CFG_002",
-            context={"reason": "file_not_found", "file": str(path)},
-        )
-
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise DevctlError(
-            "CFG_002",
-            context={"reason": "file_not_found", "file": str(path)},
-        ) from exc
-
-    try:
-        data = yaml.safe_load(text)
-    except yaml.YAMLError as exc:
-        mark = getattr(exc, "problem_mark", None)
-        line = (mark.line + 1) if mark is not None else 0
-        column = (mark.column + 1) if mark is not None else 0
-        first_line = str(exc).splitlines()[0] if str(exc) else "parse error"
-        raise DevctlError(
-            "CFG_001",
-            context={
-                "file": str(path),
-                "line": str(line),
-                "column": str(column),
-                "message": first_line,
-            },
-        ) from exc
-
-    if data is None:
-        return {}
-    if not isinstance(data, dict):
-        raise DevctlError(
-            "CFG_002",
-            context={
-                "file": str(path),
-                "field": "<root>",
-                "value": type(data).__name__,
-                "message": "top-level is not a mapping",
-            },
-        )
-    return data
-
-
-def _wrap_validation_error(path: Path, exc: ValidationError) -> DevctlError:
-    first = exc.errors()[0]
-    loc = ".".join(str(p) for p in first.get("loc", ()))
-    return DevctlError(
-        "CFG_002",
-        context={
-            "file": str(path),
-            "field": loc or "<root>",
-            "value": str(first.get("input", "")),
-            "message": str(first.get("msg", "validation error")),
-        },
-    )
-
-
 def load_config(path: Path) -> Config:
     """Load & validate .devctl/config.yaml."""
-    data = _read_yaml(path)
+    data = read_yaml(path)
 
     version = data.get("version")
     if version is not None and version != 1:
@@ -92,18 +30,18 @@ def load_config(path: Path) -> Config:
     except DevctlError:
         raise
     except ValidationError as exc:
-        raise _wrap_validation_error(path, exc) from exc
+        raise wrap_validation_error(path, exc) from exc
 
 
 def load_service(path: Path) -> ServiceCfg:
     """Load & validate một file .devctl/services/*.yaml."""
-    data = _read_yaml(path)
+    data = read_yaml(path)
     try:
         return ServiceCfg.model_validate(data)
     except DevctlError:
         raise
     except ValidationError as exc:
-        raise _wrap_validation_error(path, exc) from exc
+        raise wrap_validation_error(path, exc) from exc
 
 
 def _detect_cycles(services: dict[str, ServiceCfg]) -> None:
@@ -132,6 +70,56 @@ def _detect_cycles(services: dict[str, ServiceCfg]) -> None:
     for name in services:
         if color[name] == white:
             visit(name)
+
+
+def validate_service_references(
+    services: dict[str, ServiceCfg],
+    *,
+    project_root: Path | None = None,
+    hooks_dir: Path | None = None,
+) -> None:
+    """Kiểm tra tính toàn vẹn tham chiếu của services.
+
+    - `depends_on` phải trỏ tới service đã khai báo → CFG_005.
+    - `env_file` (nếu có, cần `project_root`) phải tồn tại → CFG_005.
+    - `hooks.*` (nếu có, cần `hooks_dir`) phải tồn tại → CFG_005.
+    """
+    for name, svc in services.items():
+        for dep in svc.depends_on:
+            if dep not in services:
+                raise DevctlError(
+                    "CFG_005",
+                    context={
+                        "service": name,
+                        "field": "depends_on",
+                        "value": dep,
+                    },
+                )
+        if svc.env_file and project_root is not None:
+            candidate = project_root / svc.env_file
+            if not candidate.exists():
+                raise DevctlError(
+                    "CFG_005",
+                    context={
+                        "service": name,
+                        "field": "env_file",
+                        "value": svc.env_file,
+                        "file": str(candidate),
+                    },
+                )
+        if svc.hooks and hooks_dir is not None:
+            for hook_name, hook_file in svc.hooks.items():
+                candidate = hooks_dir / hook_file
+                if not candidate.exists():
+                    raise DevctlError(
+                        "CFG_005",
+                        context={
+                            "service": name,
+                            "field": f"hooks.{hook_name}",
+                            "value": hook_file,
+                            "file": str(candidate),
+                        },
+                    )
 
 
 def load_all_services(services_dir: Path) -> dict[str, ServiceCfg]:
@@ -174,4 +162,9 @@ def load_all_services(services_dir: Path) -> dict[str, ServiceCfg]:
     return services
 
 
-__all__ = ["load_config", "load_service", "load_all_services"]
+__all__ = [
+    "load_config",
+    "load_service",
+    "load_all_services",
+    "validate_service_references",
+]

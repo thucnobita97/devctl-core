@@ -1,0 +1,12 @@
+version: 2
+docs:
+  roadmap: docs/00-ROADMAP.md
+  resume: docs/01-RESUME.md
+  patch_rules: docs/02-PATCH-RULES.md
+  decisions: docs/03-DECISIONS.md
+  conventions: docs/04-CONVENTIONS.md
+  changelog: docs/05-CHANGELOG.md
+  known_issues: docs/06-KNOWN-ISSUES.md
+  glossary: docs/07-GLOSSARY.md
+prompt:
+  template: .devctl/templates/session-prompt.md

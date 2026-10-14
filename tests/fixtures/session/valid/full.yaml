@@ -1,0 +1,24 @@
+version: 1
+
+docs:
+  roadmap: docs/00-ROADMAP.md
+  resume: docs/01-RESUME.md
+  patch_rules: docs/02-PATCH-RULES.md
+  decisions: docs/03-DECISIONS.md
+  conventions: docs/04-CONVENTIONS.md
+  changelog: docs/05-CHANGELOG.md
+  known_issues: docs/06-KNOWN-ISSUES.md
+  glossary: docs/07-GLOSSARY.md
+
+handoff:
+  sections:
+    - UPDATE 00-ROADMAP
+    - UPDATE 01-RESUME
+    - UPDATE 03-DECISIONS
+    - UPDATE 05-CHANGELOG
+    - UPDATE 06-KNOWN-ISSUES
+    - PROMPT CHO SESSION
+
+prompt:
+  template: .devctl/templates/session-prompt.md
+  language: vi
