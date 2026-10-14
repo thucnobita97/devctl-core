@@ -1,8 +1,7 @@
 # devctl-core
 
+![CI](https://github.com/thucnobita97/devctl-core/actions/workflows/ci.yml/badge.svg)
 ![python](https://img.shields.io/badge/python-3.12-blue)
-![tests](https://img.shields.io/badge/tests-189%20passed-brightgreen)
-![coverage](https://img.shields.io/badge/coverage-96%25-brightgreen)
 ![version](https://img.shields.io/badge/version-0.2.0.dev0-orange)
 
 

@@ -37,9 +37,7 @@ def _write_devctl(root: Path, *, version: int = 1) -> Path:
 
 def test_validate_json_ok(tmp_path: Path) -> None:
     cfg_dir = _write_devctl(tmp_path)
-    result = runner.invoke(
-        app, ["validate", "--config-dir", str(cfg_dir), "--json"]
-    )
+    result = runner.invoke(app, ["validate", "--config-dir", str(cfg_dir), "--json"])
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload == {"ok": True, "errors": []}
@@ -47,9 +45,7 @@ def test_validate_json_ok(tmp_path: Path) -> None:
 
 def test_validate_json_fail_bad_version(tmp_path: Path) -> None:
     cfg_dir = _write_devctl(tmp_path, version=2)
-    result = runner.invoke(
-        app, ["validate", "--config-dir", str(cfg_dir), "--json"]
-    )
+    result = runner.invoke(app, ["validate", "--config-dir", str(cfg_dir), "--json"])
     assert result.exit_code == 2
     payload = json.loads(result.output)
     assert payload["ok"] is False
@@ -73,9 +69,7 @@ def test_validate_json_missing_manifest(tmp_path: Path) -> None:
 
 def test_status_json_all_stopped(tmp_path: Path) -> None:
     cfg_dir = _write_devctl(tmp_path)
-    result = runner.invoke(
-        app, ["status", "--config-dir", str(cfg_dir), "--json"]
-    )
+    result = runner.invoke(app, ["status", "--config-dir", str(cfg_dir), "--json"])
     assert result.exit_code == 0, result.output
     rows = json.loads(result.output)
     assert isinstance(rows, list)
@@ -101,12 +95,8 @@ def test_status_json_running(tmp_path: Path) -> None:
     import os
 
     cfg_dir = _write_devctl(tmp_path)
-    (cfg_dir / "runtime" / "app.pid").write_text(
-        str(os.getpid()), encoding="utf-8"
-    )
-    result = runner.invoke(
-        app, ["status", "--config-dir", str(cfg_dir), "--json"]
-    )
+    (cfg_dir / "runtime" / "app.pid").write_text(str(os.getpid()), encoding="utf-8")
+    result = runner.invoke(app, ["status", "--config-dir", str(cfg_dir), "--json"])
     assert result.exit_code == 0
     rows = json.loads(result.output)
     assert rows[0]["state"] == "running"

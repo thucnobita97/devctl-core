@@ -16,9 +16,7 @@ class SystemdProvider:
     def _unit(svc: ServiceCfg) -> str:
         return svc.service or svc.name
 
-    def _systemctl(
-        self, ctx: ProviderContext, *args: str
-    ) -> subprocess.CompletedProcess[str]:
+    def _systemctl(self, ctx: ProviderContext, *args: str) -> subprocess.CompletedProcess[str]:
         cmd = ["systemctl"]
         if ctx.systemd_scope == "user":
             cmd.append("--user")

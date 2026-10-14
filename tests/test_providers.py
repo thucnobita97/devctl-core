@@ -234,9 +234,7 @@ def test_docker_compose_start_fail(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert ei.value.code == "SVC_002"
 
 
-def test_docker_compose_status_running(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_docker_compose_status_running(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from devctl_core.providers import docker_compose as dc_mod
 
     compose = tmp_path / "docker-compose.yml"
@@ -258,9 +256,7 @@ def test_docker_compose_status_running(
     assert p.status(svc, ctx) == "running"
 
 
-def test_docker_compose_status_stopped(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_docker_compose_status_stopped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from devctl_core.providers import docker_compose as dc_mod
 
     compose = tmp_path / "docker-compose.yml"
@@ -367,9 +363,7 @@ def test_cli_stop_not_running(tmp_path: Path) -> None:
     assert "SVC_003" in result.output
 
 
-def test_native_start_already_running(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_native_start_already_running(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     p = NativeProvider()
     runtime = tmp_path / "runtime"
     runtime.mkdir()
@@ -467,9 +461,7 @@ def test_docker_compose_status_returncode_nonzero(
     assert p.status(svc, ctx) == "unknown"
 
 
-def test_docker_compose_exec_oserror(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_docker_compose_exec_oserror(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from devctl_core.providers import docker_compose as dc_mod
 
     compose = tmp_path / "docker-compose.yml"
@@ -489,9 +481,7 @@ def test_docker_compose_exec_oserror(
     assert ei.value.context["reason"] == "docker_missing"
 
 
-def test_docker_compose_stop_ok(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_docker_compose_stop_ok(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from devctl_core.providers import docker_compose as dc_mod
 
     compose = tmp_path / "docker-compose.yml"

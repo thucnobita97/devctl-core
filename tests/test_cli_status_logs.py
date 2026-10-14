@@ -62,25 +62,19 @@ def test_status_running(tmp_path: Path) -> None:
 
 def test_status_unknown_service(tmp_path: Path) -> None:
     cfg_dir = _write_devctl(tmp_path)
-    result = runner.invoke(
-        app, ["status", "ghost", "--config-dir", str(cfg_dir)]
-    )
+    result = runner.invoke(app, ["status", "ghost", "--config-dir", str(cfg_dir)])
     assert result.exit_code == 30
     assert "SVC_001" in result.output
 
 
-def test_status_health_unhealthy(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_status_health_unhealthy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from devctl_core import health as health_mod
 
     cfg_dir = _write_devctl(
         tmp_path,
-        service_health="health:\n  type: exec\n  command: \"false\"\n  timeout: 1\n",
+        service_health='health:\n  type: exec\n  command: "false"\n  timeout: 1\n',
     )
-    (cfg_dir / "runtime" / "app.pid").write_text(
-        str(os.getpid()), encoding="utf-8"
-    )
+    (cfg_dir / "runtime" / "app.pid").write_text(str(os.getpid()), encoding="utf-8")
 
     class FakeCompleted:
         returncode = 1
@@ -99,9 +93,7 @@ def test_status_health_unhealthy(
 
 def test_logs_missing(tmp_path: Path) -> None:
     cfg_dir = _write_devctl(tmp_path)
-    result = runner.invoke(
-        app, ["logs", "app", "--config-dir", str(cfg_dir)]
-    )
+    result = runner.invoke(app, ["logs", "app", "--config-dir", str(cfg_dir)])
     assert result.exit_code == 0
     assert "no log file" in result.output
 
@@ -112,9 +104,7 @@ def test_logs_tail_default(tmp_path: Path) -> None:
         "\n".join(f"line-{i}" for i in range(1, 101)) + "\n",
         encoding="utf-8",
     )
-    result = runner.invoke(
-        app, ["logs", "app", "--config-dir", str(cfg_dir)]
-    )
+    result = runner.invoke(app, ["logs", "app", "--config-dir", str(cfg_dir)])
     assert result.exit_code == 0
     assert "line-100" in result.output
     assert "line-51\n" in result.output
@@ -124,9 +114,7 @@ def test_logs_tail_default(tmp_path: Path) -> None:
 
 def test_logs_tail_n(tmp_path: Path) -> None:
     cfg_dir = _write_devctl(tmp_path, with_log=True)
-    result = runner.invoke(
-        app, ["logs", "app", "--config-dir", str(cfg_dir), "--tail", "3"]
-    )
+    result = runner.invoke(app, ["logs", "app", "--config-dir", str(cfg_dir), "--tail", "3"])
     assert result.exit_code == 0
     assert "line-20" in result.output
     assert "line-18" in result.output
@@ -135,8 +123,6 @@ def test_logs_tail_n(tmp_path: Path) -> None:
 
 def test_logs_unknown_service(tmp_path: Path) -> None:
     cfg_dir = _write_devctl(tmp_path, with_log=True)
-    result = runner.invoke(
-        app, ["logs", "ghost", "--config-dir", str(cfg_dir)]
-    )
+    result = runner.invoke(app, ["logs", "ghost", "--config-dir", str(cfg_dir)])
     assert result.exit_code == 30
     assert "SVC_001" in result.output

@@ -54,6 +54,7 @@ def test_load_session_missing_required(tmp_path: Path) -> None:
         load_session(p)
     assert ei.value.code == "CFG_002"
 
+
 def test_load_session_top_level_not_mapping(tmp_path: Path) -> None:
     p = tmp_path / "s.yaml"
     p.write_text("- 1\n", encoding="utf-8")

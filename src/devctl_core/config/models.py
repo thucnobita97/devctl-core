@@ -9,9 +9,7 @@ from devctl_core.errors import DevctlError
 
 _NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
-ProviderName = Literal[
-    "docker-compose", "docker-external", "native", "systemd", "external"
-]
+ProviderName = Literal["docker-compose", "docker-external", "native", "systemd", "external"]
 HealthType = Literal["tcp", "http", "exec", "process"]
 
 

@@ -159,15 +159,21 @@ def _do_start(
 ) -> None:
     provider = get_provider(svc.provider)
     run_phase(
-        svc.name, "pre-start", hooks_dir,
-        ignore_hooks=ignore_hooks, timeout=timeout,
+        svc.name,
+        "pre-start",
+        hooks_dir,
+        ignore_hooks=ignore_hooks,
+        timeout=timeout,
     )
     provider.start(svc, ctx)
     if not skip_health:
         _wait_for_health(svc, ctx)
     run_phase(
-        svc.name, "post-start", hooks_dir,
-        ignore_hooks=ignore_hooks, timeout=timeout,
+        svc.name,
+        "post-start",
+        hooks_dir,
+        ignore_hooks=ignore_hooks,
+        timeout=timeout,
     )
 
 
@@ -181,13 +187,19 @@ def _do_stop(
 ) -> None:
     provider = get_provider(svc.provider)
     run_phase(
-        svc.name, "pre-stop", hooks_dir,
-        ignore_hooks=ignore_hooks, timeout=timeout,
+        svc.name,
+        "pre-stop",
+        hooks_dir,
+        ignore_hooks=ignore_hooks,
+        timeout=timeout,
     )
     provider.stop(svc, ctx)
     run_phase(
-        svc.name, "post-stop", hooks_dir,
-        ignore_hooks=ignore_hooks, timeout=timeout,
+        svc.name,
+        "post-stop",
+        hooks_dir,
+        ignore_hooks=ignore_hooks,
+        timeout=timeout,
     )
 
 
@@ -199,9 +211,7 @@ def validate_cmd(
     config_dir: Annotated[
         Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
     ] = Path(".devctl"),
-    json_output: Annotated[
-        bool, typer.Option("--json", help="Xuất JSON thay vì text.")
-    ] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Xuất JSON thay vì text.")] = False,
 ) -> None:
     """Validate .devctl/ (config.yaml + session.yaml + services/)."""
     try:
@@ -223,8 +233,7 @@ def validate_cmd(
         if not services_dir.exists():
             raise DevctlError("MAN_003", context={"dir": str(services_dir)})
         has_yaml = any(
-            p.is_file() and p.suffix in {".yaml", ".yml"}
-            for p in services_dir.iterdir()
+            p.is_file() and p.suffix in {".yaml", ".yml"} for p in services_dir.iterdir()
         )
         if not has_yaml:
             raise DevctlError("MAN_003", context={"dir": str(services_dir)})
@@ -238,9 +247,7 @@ def validate_cmd(
         )
     except DevctlError as err:
         if json_output:
-            typer.echo(
-                json.dumps({"ok": False, "errors": [_err_to_dict(err)]})
-            )
+            typer.echo(json.dumps({"ok": False, "errors": [_err_to_dict(err)]}))
             raise typer.Exit(code=_EXIT_CODES.get(err.code, _UNKNOWN_EXIT)) from err
         _die(err)
 
@@ -253,9 +260,7 @@ def validate_cmd(
 @app.command("init")
 def init_cmd(
     root: Annotated[Path, typer.Argument(help="Thư mục project.")] = Path("."),
-    force: Annotated[
-        bool, typer.Option("--force", "-f", help="Ghi đè file đã tồn tại.")
-    ] = False,
+    force: Annotated[bool, typer.Option("--force", "-f", help="Ghi đè file đã tồn tại.")] = False,
 ) -> None:
     """Sinh skeleton .devctl/ cho project (idempotent)."""
     result = init_devctl(root, force=force)
@@ -272,9 +277,9 @@ def init_cmd(
 def hook_run_cmd(
     service: Annotated[str, typer.Argument(help="Tên service.")],
     phase: Annotated[str, typer.Argument(help=f"Một trong: {', '.join(PHASES)}")],
-    hooks_dir: Annotated[
-        Path, typer.Option("--hooks-dir", help="Thư mục chứa hook.")
-    ] = Path(".devctl/hooks"),
+    hooks_dir: Annotated[Path, typer.Option("--hooks-dir", help="Thư mục chứa hook.")] = Path(
+        ".devctl/hooks"
+    ),
     ignore_hooks: Annotated[
         bool, typer.Option("--ignore-hooks", help="Bỏ qua toàn bộ hook.")
     ] = False,
@@ -341,8 +346,12 @@ def start_cmd(
         svc = services[service]
         hooks_dir = ctx.project_root / cfg.paths.hooks
         _do_start(
-            svc, ctx, hooks_dir,
-            ignore_hooks=ignore_hooks, timeout=timeout, skip_health=skip_health,
+            svc,
+            ctx,
+            hooks_dir,
+            ignore_hooks=ignore_hooks,
+            timeout=timeout,
+            skip_health=skip_health,
         )
     except DevctlError as err:
         _die(err)
@@ -371,8 +380,11 @@ def stop_cmd(
         svc = services[service]
         hooks_dir = ctx.project_root / cfg.paths.hooks
         _do_stop(
-            svc, ctx, hooks_dir,
-            ignore_hooks=ignore_hooks, timeout=timeout,
+            svc,
+            ctx,
+            hooks_dir,
+            ignore_hooks=ignore_hooks,
+            timeout=timeout,
         )
     except DevctlError as err:
         _die(err)
@@ -407,12 +419,19 @@ def restart_cmd(
 
         if provider.status(svc, ctx) == "running":
             _do_stop(
-                svc, ctx, hooks_dir,
-                ignore_hooks=ignore_hooks, timeout=timeout,
+                svc,
+                ctx,
+                hooks_dir,
+                ignore_hooks=ignore_hooks,
+                timeout=timeout,
             )
         _do_start(
-            svc, ctx, hooks_dir,
-            ignore_hooks=ignore_hooks, timeout=timeout, skip_health=skip_health,
+            svc,
+            ctx,
+            hooks_dir,
+            ignore_hooks=ignore_hooks,
+            timeout=timeout,
+            skip_health=skip_health,
         )
     except DevctlError as err:
         _die(err)
@@ -448,9 +467,7 @@ def status_cmd(
     config_dir: Annotated[
         Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
     ] = Path(".devctl"),
-    json_output: Annotated[
-        bool, typer.Option("--json", help="Xuất JSON thay vì text.")
-    ] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Xuất JSON thay vì text.")] = False,
 ) -> None:
     """In trạng thái service (provider + running/stopped + health)."""
     failed = False
@@ -497,9 +514,7 @@ def status_cmd(
                 typer.echo(f"{name}\t{svc.provider}\t{state}\t{shown_health}")
     except DevctlError as err:
         if json_output:
-            typer.echo(
-                json.dumps({"ok": False, "errors": [_err_to_dict(err)]})
-            )
+            typer.echo(json.dumps({"ok": False, "errors": [_err_to_dict(err)]}))
             raise typer.Exit(code=_EXIT_CODES.get(err.code, _UNKNOWN_EXIT)) from err
         _die(err)
 
@@ -524,9 +539,7 @@ def logs_cmd(
         Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
     ] = Path(".devctl"),
     tail: Annotated[int, typer.Option("--tail", "-n", help="Số dòng cuối.")] = 50,
-    follow: Annotated[
-        bool, typer.Option("--follow", "-f", help="Theo dõi (tail -f).")
-    ] = False,
+    follow: Annotated[bool, typer.Option("--follow", "-f", help="Theo dõi (tail -f).")] = False,
 ) -> None:
     """Xem log của service (`.devctl/logs/{svc}.log`)."""
     try:
@@ -551,9 +564,7 @@ def info_cmd(
     config_dir: Annotated[
         Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
     ] = Path(".devctl"),
-    json_output: Annotated[
-        bool, typer.Option("--json", help="Xuất JSON thay vì text.")
-    ] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Xuất JSON thay vì text.")] = False,
 ) -> None:
     """In thông tin runtime: version core, python, providers, config paths."""
     info = collect_info(config_dir=config_dir)

@@ -214,6 +214,7 @@ def test_cli_hook_bad_phase(tmp_path: Path) -> None:
     assert result.exit_code == 2
     assert "CFG_002" in result.output
 
+
 def test_run_phase_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import subprocess
 

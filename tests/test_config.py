@@ -131,12 +131,8 @@ def test_load_all_services_duplicate(tmp_path: Path) -> None:
 
 
 def test_load_all_services_cycle(tmp_path: Path) -> None:
-    (tmp_path / "a.yaml").write_text(
-        "name: a\nprovider: native\ncommand: a\ndepends_on: [b]\n"
-    )
-    (tmp_path / "b.yaml").write_text(
-        "name: b\nprovider: native\ncommand: b\ndepends_on: [a]\n"
-    )
+    (tmp_path / "a.yaml").write_text("name: a\nprovider: native\ncommand: a\ndepends_on: [b]\n")
+    (tmp_path / "b.yaml").write_text("name: b\nprovider: native\ncommand: b\ndepends_on: [a]\n")
     with pytest.raises(DevctlError) as ei:
         load_all_services(tmp_path)
     assert ei.value.code == "CFG_004"
@@ -145,23 +141,16 @@ def test_load_all_services_cycle(tmp_path: Path) -> None:
 
 
 def test_load_all_services_cycle_three_nodes(tmp_path: Path) -> None:
-    (tmp_path / "a.yaml").write_text(
-        "name: a\nprovider: native\ncommand: a\ndepends_on: [b]\n"
-    )
-    (tmp_path / "b.yaml").write_text(
-        "name: b\nprovider: native\ncommand: b\ndepends_on: [c]\n"
-    )
-    (tmp_path / "c.yaml").write_text(
-        "name: c\nprovider: native\ncommand: c\ndepends_on: [a]\n"
-    )
+    (tmp_path / "a.yaml").write_text("name: a\nprovider: native\ncommand: a\ndepends_on: [b]\n")
+    (tmp_path / "b.yaml").write_text("name: b\nprovider: native\ncommand: b\ndepends_on: [c]\n")
+    (tmp_path / "c.yaml").write_text("name: c\nprovider: native\ncommand: c\ndepends_on: [a]\n")
     with pytest.raises(DevctlError) as ei:
         load_all_services(tmp_path)
     assert ei.value.code == "CFG_004"
     assert ei.value.context["cycle"].count("->") >= 3
 
-def test_load_config_read_text_oserror(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+
+def test_load_config_read_text_oserror(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from pathlib import Path as _Path
 
     target = tmp_path / "c.yaml"

@@ -13,9 +13,7 @@ PHASES: tuple[Phase, ...] = ("pre-start", "post-start", "pre-stop", "post-stop")
 DEFAULT_TIMEOUT = 60.0
 
 
-def discover_hooks(
-    service_name: str, phase: str, hooks_dir: Path
-) -> list[Path]:
+def discover_hooks(service_name: str, phase: str, hooks_dir: Path) -> list[Path]:
     """Trả về các hook file cho phase, theo thứ tự chạy.
 
     Thứ tự:

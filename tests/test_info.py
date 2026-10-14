@@ -53,9 +53,7 @@ def test_cli_info_json() -> None:
 
 
 def test_cli_info_with_config_dir(tmp_path: Path) -> None:
-    result = runner.invoke(
-        app, ["info", "--config-dir", str(tmp_path / ".devctl"), "--json"]
-    )
+    result = runner.invoke(app, ["info", "--config-dir", str(tmp_path / ".devctl"), "--json"])
     assert result.exit_code == 0
     payload = json.loads(result.output)
     assert "config_dir" in payload

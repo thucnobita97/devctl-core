@@ -131,9 +131,7 @@ def load_all_services(services_dir: Path) -> dict[str, ServiceCfg]:
         )
 
     files = sorted(
-        p
-        for p in services_dir.iterdir()
-        if p.is_file() and p.suffix in {".yaml", ".yml"}
+        p for p in services_dir.iterdir() if p.is_file() and p.suffix in {".yaml", ".yml"}
     )
     if not files:
         raise DevctlError(

@@ -99,9 +99,7 @@ def _write_cfg(root: Path, version: int | None) -> Path:
 
 def test_cli_migrate_already_at_version(tmp_path: Path) -> None:
     cfg_dir = _write_cfg(tmp_path, 1)
-    result = runner.invoke(
-        app, ["config", "migrate", "--config-dir", str(cfg_dir)]
-    )
+    result = runner.invoke(app, ["config", "migrate", "--config-dir", str(cfg_dir)])
     assert result.exit_code == 0, result.output
     assert "already at version 1" in result.output
 
@@ -128,9 +126,7 @@ def test_cli_migrate_writes_with_backup(tmp_path: Path) -> None:
     register(_V1ToV2())
     cfg_dir = _write_cfg(tmp_path, 1)
 
-    result = runner.invoke(
-        app, ["config", "migrate", "--config-dir", str(cfg_dir)]
-    )
+    result = runner.invoke(app, ["config", "migrate", "--config-dir", str(cfg_dir)])
     assert result.exit_code == 0, result.output
     assert "migrated: 1 -> 2" in result.output
 
@@ -176,9 +172,7 @@ def test_cli_migrate_missing_config(tmp_path: Path) -> None:
 
 def test_cli_migrate_missing_version(tmp_path: Path) -> None:
     cfg_dir = _write_cfg(tmp_path, None)
-    result = runner.invoke(
-        app, ["config", "migrate", "--config-dir", str(cfg_dir)]
-    )
+    result = runner.invoke(app, ["config", "migrate", "--config-dir", str(cfg_dir)])
     assert result.exit_code == 2
     assert "CFG_002" in result.output
     assert "missing_version" in result.output

@@ -67,8 +67,6 @@ def test_cli_init_force(tmp_path: Path) -> None:
 
 def test_cli_init_then_validate_services_empty(tmp_path: Path) -> None:
     runner.invoke(app, ["init", str(tmp_path)])
-    result = runner.invoke(
-        app, ["validate", "--config-dir", str(tmp_path / ".devctl")]
-    )
+    result = runner.invoke(app, ["validate", "--config-dir", str(tmp_path / ".devctl")])
     assert result.exit_code == 12
     assert "MAN_003" in result.output

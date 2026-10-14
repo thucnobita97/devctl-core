@@ -30,9 +30,7 @@ def _ctx(tmp_path: Path, scope: str = "user") -> ProviderContext:
 def _completed(
     returncode: int = 0, stdout: str = "", stderr: str = ""
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(
-        args=[], returncode=returncode, stdout=stdout, stderr=stderr
-    )
+    return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
 
 
 # ------------------------------ registry --------------------------------

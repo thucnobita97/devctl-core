@@ -70,9 +70,7 @@ def _install_fakes(monkeypatch: pytest.MonkeyPatch, new_pid: int = 4242) -> dict
 # --------------------------------- restart -------------------------------
 
 
-def test_restart_when_stopped(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_restart_when_stopped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _install_fakes(monkeypatch)
     cfg_dir = _write_devctl(tmp_path)
 
@@ -85,9 +83,7 @@ def test_restart_when_stopped(
     assert (cfg_dir / "runtime" / "app.pid").exists()
 
 
-def test_restart_when_running(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_restart_when_running(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     state = _install_fakes(monkeypatch)
     cfg_dir = _write_devctl(tmp_path)
     (cfg_dir / "runtime" / "app.pid").write_text(str(os.getpid()), encoding="utf-8")
@@ -134,8 +130,6 @@ def test_ps_running(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_ps_missing_manifest(tmp_path: Path) -> None:
-    result = runner.invoke(
-        app, ["ps", "--config-dir", str(tmp_path / "nope")]
-    )
+    result = runner.invoke(app, ["ps", "--config-dir", str(tmp_path / "nope")])
     assert result.exit_code == 10
     assert "MAN_001" in result.output

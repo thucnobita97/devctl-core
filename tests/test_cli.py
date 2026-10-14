@@ -14,9 +14,7 @@ def _write_minimal_devctl(root: Path, *, version: int = 1) -> Path:
     (cfg_dir / "services").mkdir(parents=True)
     (cfg_dir / "hooks").mkdir()
     (cfg_dir / "config.yaml").write_text(
-        f"version: {version}\n"
-        "project:\n  name: demo\n"
-        "paths:\n  hooks: .devctl/hooks\n"
+        f"version: {version}\nproject:\n  name: demo\npaths:\n  hooks: .devctl/hooks\n"
     )
     (cfg_dir / "services" / "postgres.yaml").write_text(
         "name: postgres\nprovider: docker-compose\nservice: postgres\n"
@@ -32,9 +30,7 @@ def test_cli_validate_ok(tmp_path: Path) -> None:
 
 
 def test_cli_validate_manifest_missing(tmp_path: Path) -> None:
-    result = runner.invoke(
-        app, ["validate", "--config-dir", str(tmp_path / "nope")]
-    )
+    result = runner.invoke(app, ["validate", "--config-dir", str(tmp_path / "nope")])
     assert result.exit_code == 10
     assert "MAN_001" in result.output
 
@@ -75,9 +71,7 @@ def test_cli_validate_bad_yaml(tmp_path: Path) -> None:
 
 def test_cli_validate_duplicate_service(tmp_path: Path) -> None:
     cfg_dir = _write_minimal_devctl(tmp_path)
-    (cfg_dir / "services" / "pg2.yaml").write_text(
-        "name: postgres\nprovider: native\ncommand: x\n"
-    )
+    (cfg_dir / "services" / "pg2.yaml").write_text("name: postgres\nprovider: native\ncommand: x\n")
     result = runner.invoke(app, ["validate", "--config-dir", str(cfg_dir)])
     assert result.exit_code == 3
     assert "CFG_003" in result.output
