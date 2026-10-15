@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "devctl-core"
-version = "0.2.0.dev0"
+version = "0.2.1.dev0"
 description = "Core library cho devctl toolkit"
 requires-python = ">=3.12,<3.13"
 license = { text = "Proprietary" }
@@ -20,6 +20,9 @@ devctl = "devctl_core.cli:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/devctl_core"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/devctl_core/py.typed" = "devctl_core/py.typed"
 
 [tool.ruff]
 line-length = 100
