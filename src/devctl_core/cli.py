@@ -212,7 +212,9 @@ def validate_cmd(
     config_dir: Annotated[
         Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
     ] = Path(".devctl"),
-    json_output: Annotated[bool, typer.Option("--json", help="Xuất JSON thay vì text.")] = False,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Xuất JSON thay vì text.")
+    ] = False,
 ) -> None:
     """Validate .devctl/ (config.yaml + session.yaml + services/)."""
     try:
@@ -234,7 +236,8 @@ def validate_cmd(
         if not services_dir.exists():
             raise DevctlError("MAN_003", context={"dir": str(services_dir)})
         has_yaml = any(
-            p.is_file() and p.suffix in {".yaml", ".yml"} for p in services_dir.iterdir()
+            p.is_file() and p.suffix in {".yaml", ".yml"}
+            for p in services_dir.iterdir()
         )
         if not has_yaml:
             raise DevctlError("MAN_003", context={"dir": str(services_dir)})
@@ -248,8 +251,11 @@ def validate_cmd(
         )
     except DevctlError as err:
         if json_output:
-            typer.echo(json.dumps({"ok": False, "errors": [_err_to_dict(err)]}))
-            raise typer.Exit(code=_EXIT_CODES.get(err.code, _UNKNOWN_EXIT)) from err
+            payload = {"ok": False, "errors": [_err_to_dict(err)]}
+            typer.echo(json.dumps(payload))
+            raise typer.Exit(
+                code=_EXIT_CODES.get(err.code, _UNKNOWN_EXIT)
+            ) from err
         _die(err)
 
     if json_output:
@@ -468,7 +474,9 @@ def status_cmd(
     config_dir: Annotated[
         Path, typer.Option("--config-dir", "-c", help="Thư mục chứa config.")
     ] = Path(".devctl"),
-    json_output: Annotated[bool, typer.Option("--json", help="Xuất JSON thay vì text.")] = False,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Xuất JSON thay vì text.")
+    ] = False,
 ) -> None:
     """In trạng thái service (provider + running/stopped + health)."""
     failed = False
@@ -511,12 +519,15 @@ def status_cmd(
                     }
                 )
             else:
-                shown_health = health_state if health_state is not None else "-"
-                typer.echo(f"{name}\t{svc.provider}\t{state}\t{shown_health}")
+                hs = health_state if health_state is not None else "-"
+                typer.echo(f"{name}\t{svc.provider}\t{state}\t{hs}")
     except DevctlError as err:
         if json_output:
-            typer.echo(json.dumps({"ok": False, "errors": [_err_to_dict(err)]}))
-            raise typer.Exit(code=_EXIT_CODES.get(err.code, _UNKNOWN_EXIT)) from err
+            payload = {"ok": False, "errors": [_err_to_dict(err)]}
+            typer.echo(json.dumps(payload))
+            raise typer.Exit(
+                code=_EXIT_CODES.get(err.code, _UNKNOWN_EXIT)
+            ) from err
         _die(err)
 
     if json_output:
